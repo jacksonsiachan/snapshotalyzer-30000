@@ -17,6 +17,7 @@ def filter_instances(project):
 def has_pending_snapshots(volume):
     snapshots = list(volume.snapshots.all())
     return snapshots and snapshots[0].state == 'pending'
+  
 
 @click.group()
 def cli(): #Parent group
@@ -74,30 +75,35 @@ def instances():
 
 @instances.command('snapshot', help="Create snapshots of all volumes.")
 @click.option('--project', default=None, help="Only instances for project (tag Project:<name>)")
-def create_snapshots(project):
+@click.option('--force',is_flag=True)
+def create_snapshots(project,force):
    "Create Snapshots of volume."
    instances = filter_instances(project)
-   for i in instances:
-       print("Stopping {0}...".format(i.id)) 
 
-       i.stop()
-       i.wait_until_stopped()
+   if force:
+         for i in instances:
+            print("Stopping {0}...".format(i.id)) 
 
-       for v in i.volumes.all():
-          if has_pending_snapshots(v):
-             print(" Skipping {0}, snapshot already in progress...".format(v.id))
-             continue
-          print("Creating snapshot of {0}".format(v.id))
-          v.create_snapshot(Description="Created by SnapshotAlyzer 30000")
+            i.stop()
+            i.wait_until_stopped()
 
-       print("Starting {0}...".format(i.id))  
+            for v in i.volumes.all():
+               if has_pending_snapshots(v):
+                  print(" Skipping {0}, snapshot already in progress...".format(v.id))
+                  continue
+               print("Creating snapshot of {0}".format(v.id))
+               v.create_snapshot(Description="Created by SnapshotAlyzer 30000")
 
-       i.start()
-       i.wait_until_running() 
+            print("Starting {0}...".format(i.id))  
 
-   print("Job's done!")
+            i.start()
+            i.wait_until_running() 
 
-   return       
+         print("Job's done!")
+
+         return 
+   else:
+         print("Error!")         
                
 
 @instances.command('list')     
@@ -113,33 +119,60 @@ def list_instances(project):
 
 @instances.command('stop')
 @click.option('--project', default=None, help="Only instances for project (tag Project:<name>)")
-def stop_instances(project):
+@click.option('--force', is_flag=True)
+def stop_instances(project,force):
      "Stop EC2 instances"
      instances = filter_instances(project)
-
-     for i in instances:
-        print("Stopping {0}...".format(i.id)) 
-        try: 
-           i.stop()
-        except botocore.exceptions.ClientError as e: 
-           print(" Could not stop {0}. ".format(i.id) + str(e))
-           continue   
-     return
+      
+     if force:
+         for i in instances:
+            print("Stopping {0}...".format(i.id)) 
+            try: 
+               i.stop()
+            except botocore.exceptions.ClientError as e: 
+               print(" Could not stop {0}. ".format(i.id) + str(e))
+               continue   
+         return
+     else:
+         print("Error!")  
 
 @instances.command('start')
 @click.option('--project', default=None, help="Only instances for project (tag Project:<name>)")
-def start_instances(project):
+@click.option('--force', is_flag=True)
+def start_instances(project,force):
      "Start EC2 instances"
      instances = filter_instances(project)
 
-     for i in instances:
-        print("Starting {0}...".format(i.id)) 
-        try:
-           i.start()
-        except botocore.exceptions.ClientError as e: 
-           print(" Could not start {0}. ".format(i.id) + str(e)) 
-           continue  
-     return
+     if force:
+         for i in instances:
+            print("Starting {0}...".format(i.id)) 
+            try:
+               i.start()
+            except botocore.exceptions.ClientError as e: 
+               print(" Could not start {0}. ".format(i.id) + str(e)) 
+               continue  
+         return
+     else:
+         print("Error!")      
+
+@instances.command('reboot')
+@click.option('--project', default=None, help="Only instances for project (tag Project:<name>)")
+@click.option('--force', is_flag=True)
+def reboot_instances(project,force):
+      "Reboot EC2 instances"   
+      instances = filter_instances(project) 
+      
+      if force:
+         for i in instances:
+            print("Rebooting {0}...".format(i.id))
+            try:
+               i.reboot()
+            except botocore.exceptions.ClientError as e:
+               print(" Could not reboot {0}. ".format(i.id) + str(e)) 
+               continue  
+         return
+      else:
+         print("Error!")         
 
 if __name__ == '__main__':
     cli()
